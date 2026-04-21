@@ -155,7 +155,7 @@ else
   # 2026-04-22 보안 강화: credential.helper 비활성화로 macOS Keychain·git-credential-cache에
   # PAT 저장 차단. 고객 맥북에 Dylan PAT 영구 잔존 방지.
   git -c credential.helper="" clone --depth 1 --filter=blob:none --sparse \
-    "https://${GH_PAT}@github.com/gonnector/aios-dev.git" \
+    "https://x-access-token:${GH_PAT}@github.com/gonnector/aios-dev.git" \
     "$ONBOARD_DIR" 2>/dev/null || fail "레포 클론 실패. 토큰과 레포 접근 권한을 확인하세요."
 
   cd "$ONBOARD_DIR"
@@ -202,7 +202,7 @@ for entry in "${CORE_SKILLS[@]}"; do
 
   info "  $alias_name 설치 중 (gonnector/$repo)..."
   # 2026-04-22 보안 강화: credential.helper="" 로 Keychain 미저장
-  if git -c credential.helper="" clone --depth 1 --quiet "https://${GH_PAT}@github.com/gonnector/${repo}.git" "$skill_dir" 2>/dev/null; then
+  if git -c credential.helper="" clone --depth 1 --quiet "https://x-access-token:${GH_PAT}@github.com/gonnector/${repo}.git" "$skill_dir" 2>/dev/null; then
     # remote URL에서 PAT 제거 (HIGH-3 원칙)
     git -C "$skill_dir" remote set-url origin "https://github.com/gonnector/${repo}.git" 2>/dev/null
     success "  $alias_name 설치 완료"
