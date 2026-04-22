@@ -215,7 +215,9 @@ echo ""
 echo -e "${GREEN}${BOLD}  ✓ Bootstrap 완료!${NC}"
 echo ""
 
-ONBOARD_CMD="cd $WORK_DIR && bun run onboard"
+# Dylan 피드백: source ~/.zshrc 필수 (PATH·brew shellenv 같은 셸 적용)
+# 새 PATH가 zprofile·zshrc에 추가됐지만 현재 셸에 즉시 반영 위해 source 필요
+ONBOARD_CMD="source ~/.zshrc && cd $WORK_DIR && bun run onboard"
 
 # Dylan UX 개선: macOS pbcopy로 명령어 클립보드 자동 복사
 COPY_OK=false
@@ -229,13 +231,17 @@ if $COPY_OK; then
   echo ""
   echo -e "    ${BOLD}$ONBOARD_CMD${NC}"
   echo ""
+  echo -e "  ${DIM}※ source ~/.zshrc 가 포함된 이유: 방금 추가된 PATH(brew·bun)를 현재 셸에 적용${NC}"
+  echo ""
 else
   echo -e "  ${BOLD}다음 명령어를 복사해서 터미널에 붙여넣고 Enter 눌러 온보딩을 시작하세요:${NC}"
   echo ""
   echo -e "    ${BOLD}$ONBOARD_CMD${NC}"
   echo ""
+  echo -e "  ${DIM}※ source ~/.zshrc 가 포함된 이유: 방금 추가된 PATH(brew·bun)를 현재 셸에 적용${NC}"
+  echo ""
 fi
 
 echo -e "  ${DIM}또는 언인스톨:${NC}"
-echo -e "    ${DIM}cd $WORK_DIR && bun run uninstall${NC}"
+echo -e "    ${DIM}source ~/.zshrc && cd $WORK_DIR && bun run uninstall${NC}"
 echo ""
