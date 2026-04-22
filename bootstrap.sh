@@ -214,10 +214,28 @@ done
 echo ""
 echo -e "${GREEN}${BOLD}  ✓ Bootstrap 완료!${NC}"
 echo ""
-echo -e "  다음 명령어로 온보딩을 시작하세요:"
-echo ""
-echo -e "    ${BOLD}cd $WORK_DIR && bun run onboard${NC}"
-echo ""
+
+ONBOARD_CMD="cd $WORK_DIR && bun run onboard"
+
+# Dylan UX 개선: macOS pbcopy로 명령어 클립보드 자동 복사
+COPY_OK=false
+if command -v pbcopy &>/dev/null; then
+  printf '%s' "$ONBOARD_CMD" | pbcopy 2>/dev/null && COPY_OK=true
+fi
+
+if $COPY_OK; then
+  echo -e "  ${CYAN}📋 다음 명령어가 클립보드에 자동 복사되었습니다.${NC}"
+  echo -e "  ${BOLD}터미널에서 ⌘+V (Cmd+V)로 붙여넣고 Enter 눌러 온보딩을 시작하세요:${NC}"
+  echo ""
+  echo -e "    ${BOLD}$ONBOARD_CMD${NC}"
+  echo ""
+else
+  echo -e "  ${BOLD}다음 명령어를 복사해서 터미널에 붙여넣고 Enter 눌러 온보딩을 시작하세요:${NC}"
+  echo ""
+  echo -e "    ${BOLD}$ONBOARD_CMD${NC}"
+  echo ""
+fi
+
 echo -e "  ${DIM}또는 언인스톨:${NC}"
-echo -e "    ${DIM}bun run uninstall${NC}"
+echo -e "    ${DIM}cd $WORK_DIR && bun run uninstall${NC}"
 echo ""
