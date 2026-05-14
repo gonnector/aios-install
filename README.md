@@ -1,75 +1,97 @@
-# AIOS 설치 시작 (aios-install)
+[English](README.md) | [한국어](README_ko.md)
 
-Gonnector AIOS 를 macOS 에 설치하는 public 부트스트랩.
+# AIOS Install (aios-install)
 
-## 빠른 시작
+Public bootstrap for installing Gonnector AIOS on macOS.
 
-터미널에서 한 줄 실행:
+## Quick Start
+
+One-line install in a terminal:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gonnector/aios-install/main/bootstrap.sh | bash
 ```
 
-진행 중에 GitHub PAT 입력 prompt 가 한 번 뜹니다 (입력 시 글자 비표시). 이후는 자동 진행 — Prerequisites 설치, AIOS 코드 다운로드, 온보딩 8 phase, 런처 등록까지.
+A single GitHub PAT prompt appears mid-flow (characters are hidden). The script then runs automatically — installs prerequisites, downloads AIOS code, walks through the 8-phase onboarding, and registers the launcher.
 
-## 필요한 것
+## Diagnose (when bootstrap fails)
 
-- **macOS** Sonoma (14.0) 이상, Apple Silicon 또는 Intel
-- **인터넷 연결**
-- **GitHub PAT** — Gonnector 관리자가 현장에서 제공 (fine-grained 권장)
-- **관리자 권한 계정** (Homebrew, sudo 필요)
+If anything goes wrong, run the public diagnose script and forward the resulting log to Gonnector:
 
-## 설치 흐름
+```bash
+curl -fsSL https://raw.githubusercontent.com/gonnector/aios-install/main/diagnose.sh | bash
+```
 
-1. **PAT 입력 prompt** (이 스크립트) — `/dev/tty` 에서 직접 받음, `curl | bash` 환경에서도 작동
-2. **PAT 권한 사전 검증** — `gonnector/aios-dev` 접근 가능성 확인 후 실패 시 즉시 안내
-3. **aios-dev 의 onboard bootstrap 호출** — `GH_PAT` 환경변수로 전달, 재입력 없음
-4. **Prerequisites 자동 설치** — Xcode CLI, Homebrew, Git, Bun, cmux, WezTerm, Discord Desktop
-5. **aios-dev 패키지 + 핵심 스킬 다운로드** — sparse clone
-6. **대화형 온보딩 8 phase** — 시스템 설정, 에이전트 프로파일링, Discord 연동, CLAUDE.md, 런처
-7. **첫 실행** — `al <에이전트>` 명령으로 세션 시작
+This collects environment info, parses the most recent `~/aios-bootstrap-*.log`, verifies PAT permission, attempts a direct `git clone`, and prints an automatic hypothesis map. Result file: `~/aios-bootstrap-diagnose-<host>-<timestamp>.txt`. Secrets are masked automatically.
 
-## 비-인터랙티브 모드 (자동화용)
+## Prerequisites
 
-interactive TTY 가 없는 환경(CI, 원격 자동화 등)에서는 환경변수로 PAT 전달:
+- **macOS** Sonoma (14.0) or later, Apple Silicon or Intel
+- **Internet connection**
+- **GitHub PAT** — provided on-site by the Gonnector administrator (fine-grained recommended)
+- **Administrator account** (sudo needed for Homebrew)
+
+## Install Flow
+
+1. **PAT prompt** (this script) — read directly from `/dev/tty` so it works under `curl | bash`
+2. **PAT permission pre-check** — verifies `gonnector/aios-dev` access; fails fast with a clear message
+3. **Calls `aios-dev/components/onboard/bootstrap.sh`** — passes `GH_PAT` as environment variable so no re-prompt
+4. **Prerequisites auto-install** — Xcode CLI, Homebrew, Git, Bun, cmux, WezTerm, Discord Desktop
+5. **Sparse partial clone** — only `components/onboard/` materializes in `~/.aios-onboard` (other components stay on the server)
+6. **Interactive 8-phase onboarding** — system settings, agent profiling, Discord, CLAUDE.md, launcher
+7. **First run** — `al <agent>` starts a session
+
+## Non-interactive (CI / automation)
+
+If no interactive TTY is available, pass the PAT via environment variable:
 
 ```bash
 GH_PAT="ghp_xxx" bash <(curl -fsSL https://raw.githubusercontent.com/gonnector/aios-install/main/bootstrap.sh)
 ```
 
-## 보안 정책
+## Security
 
-- PAT 은 셸 메모리에만 보관 (export 후 자동 unset). bash history 노출 X
-- `read -sp ... </dev/tty` 로 PAT 입력 시 화면 비표시
-- 다운스트림 `aios-dev/bootstrap.sh` 가 `git -c credential.helper=""` 로 macOS Keychain 저장 차단
-- clone 직후 `git remote set-url` 로 PAT 을 git config 에서 제거
-- 고객 맥북에 Dylan/관리자 PAT 영구 잔존 없음
+- PAT lives in shell memory only (auto-unset on exit). No bash history exposure.
+- `read -s ... </dev/tty` hides PAT keystrokes
+- Downstream `aios-dev/bootstrap.sh` disables `git credential.helper` to block macOS Keychain storage
+- `git remote set-url` removes PAT from git config immediately after clone
+- Sparse partial clone (`--filter=blob:none` + `core.sparseCheckout`) — only `components/onboard/` is materialized; the rest of `aios-dev` stays server-side
+- No PAT, token, or secret persists on the customer machine
 
-## 트러블슈팅
+## Troubleshooting
 
-| 증상 | 진단 | 조치 |
-|------|------|------|
-| `curl: (56) ... 404` | aios-install repo 또는 브랜치 오타 | 위 명령 그대로 복사 — 브랜치는 `main` (master 아님) |
-| `HTTP 404 — private repo` 메시지 | PAT 가 `gonnector/aios-dev` 접근 권한 없음 | fine-grained PAT 의 Selected repositories 에 추가, Contents: Read-only |
-| `HTTP 401/403` | PAT 만료 또는 형식 오류 | 새 PAT 발급. 형식 검증 메시지 확인 |
-| `interactive TTY 가 없습니다` | CI / 원격 비인터랙티브 환경 | 위 "비-인터랙티브 모드" 섹션 참조 |
-| 부트스트랩 도중 sudo 실패 | 관리자 권한 없음 또는 비밀번호 오류 | 관리자 권한 계정에서 재실행 |
+| Symptom | Diagnosis | Action |
+|---------|-----------|--------|
+| `curl: (56) ... 404` | Wrong repo or branch | Use the command exactly — branch is `main` (not `master`) |
+| `HTTP 404 — private repo` | PAT lacks `gonnector/aios-dev` access | Add to fine-grained PAT's Selected repositories with `Contents: Read-only` |
+| `HTTP 401/403` | PAT expired or malformed | Issue a new PAT |
+| `interactive TTY not available` | CI / remote automation | See "Non-interactive" section above |
+| sudo failure during bootstrap | No admin privileges | Re-run from an admin account |
+| Bootstrap silently exits | Old log present | Run `diagnose.sh` — auto-detects stage and proposes a fix |
 
-## uninstall
+## Uninstall
 
 ```bash
 cd ~/.aios-onboard/components/onboard
 bun run uninstall
 ```
 
-전체 제거 시 `~/aios-backup/` 에 에이전트 memory 백업 옵션 제공.
+Optionally backs up agent memory to `~/aios-backup/` before full removal.
 
-## Repo 구조
+## Repository Layout
 
-- **aios-install** (이 repo, public) — thin bootstrap wrapper (이 파일)
-- **aios-dev** (private) — onboard 코드, 스킬, 개발 중 컴포넌트, 실제 설치 로직
-- **aios-ops** (private, 예약) — pilot 2+ 크로스 디바이스 sync 또는 release cycle
+- **aios-install** (this repo, public) — thin bootstrap wrapper + diagnose tool
+- **aios-dev** (private) — onboard code, skill repos, all active components; full IP. SSoT.
+- **aios-ops** (private, reserved) — pilot 2+ cross-device sync / release cycle
+
+The wrapper here intentionally contains no install logic — `aios-dev` is the single source of truth. Updating onboarding behavior in `aios-dev` is automatically reflected through this public entry point.
+
+## Documentation
+
+- Operations guide for this repo: [`CLAUDE.md`](CLAUDE.md)
+- Version history: [`CHANGELOG.md`](CHANGELOG.md)
+- Logging & error-handling spec: `aios-dev/components/onboard/docs/20260514_spec_bootstrap-logging-and-errors_TARS-MB.md` (private)
 
 ## Copyright
 
-© 2026 Gonnector (고영혁). MIT License (see LICENSE).
+© 2026 Gonnector (고영혁). MIT License — see [`LICENSE`](LICENSE).
