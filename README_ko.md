@@ -9,8 +9,10 @@ Gonnector AIOS 를 macOS 에 설치하는 public 부트스트랩.
 터미널에서 한 줄 실행:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gonnector/aios-install/main/bootstrap.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/gonnector/aios-install/main/bootstrap.sh)
 ```
+
+> `curl … | bash` 대신 `bash <(curl …)` (process substitution) 을 사용합니다. 파이프 패턴은 bash 의 stdin 을 닫힌 파이프로 만들어 Phase 2 의 인터랙티브 prompt (@clack/prompts TUI) 를 깨뜨립니다. process substitution 은 stdin 을 controlling terminal 에 연결한 상태로 유지하여 자동 진입이 매끄럽게 동작합니다.
 
 진행 중에 GitHub PAT 입력 prompt 가 한 번 뜹니다 (입력 시 글자 비표시). 이후는 자동 진행 — Prerequisites 설치, AIOS 코드 다운로드, 온보딩 8 phase, 런처 등록까지.
 

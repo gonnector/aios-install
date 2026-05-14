@@ -8,7 +8,11 @@
 # `aios-dev/components/onboard/bootstrap.sh` 가 담당.
 #
 # 사용자 명령 한 줄:
-#   curl -fsSL https://raw.githubusercontent.com/gonnector/aios-install/main/bootstrap.sh | bash
+#   bash <(curl -fsSL https://raw.githubusercontent.com/gonnector/aios-install/main/bootstrap.sh)
+#
+# 2026-05-14: `curl … | bash` 패턴은 bash stdin = pipe (EOF) 로 만들어 Phase 2 의
+# @clack/prompts 인터랙티브 prompt 를 깨뜨림. `bash <(curl …)` (process substitution) 으로
+# 전환 — bash stdin = controlling terminal → exec bun 이 정상 TTY stdin 상속.
 #
 # 흐름:
 #   1) PAT 입력 (interactive, /dev/tty 사용 — curl|bash 패턴에서도 작동)

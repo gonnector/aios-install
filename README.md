@@ -9,8 +9,10 @@ Public bootstrap for installing Gonnector AIOS on macOS.
 One-line install in a terminal:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gonnector/aios-install/main/bootstrap.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/gonnector/aios-install/main/bootstrap.sh)
 ```
+
+> Use `bash <(curl …)` (process substitution), not `curl … | bash`. The pipe pattern makes bash's stdin a closed pipe, which breaks the interactive prompts in Phase 2 (the @clack/prompts TUI). Process substitution keeps stdin attached to the controlling terminal so auto-enter works smoothly.
 
 A single GitHub PAT prompt appears mid-flow (characters are hidden). The script then runs automatically — installs prerequisites, downloads AIOS code, walks through the 8-phase onboarding, and registers the launcher.
 

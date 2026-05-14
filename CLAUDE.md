@@ -29,10 +29,12 @@ private `aios-dev` 와의 관계: aios-install 은 wrapper, **aios-dev 가 SSoT*
 ### 3.1 정상 설치 (신규 머신)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gonnector/aios-install/main/bootstrap.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/gonnector/aios-install/main/bootstrap.sh)
 ```
 
 PAT prompt 1회. 이후 자동 진행 — Prerequisites + aios-dev clone + 핵심 스킬 + onboard 8 phase.
+
+> **`curl … | bash` 폐기 (2026-05-14)**: 파이프 패턴은 bash 의 stdin 을 닫힌 파이프로 만들어 Phase 2 의 @clack/prompts (TUI) 인터랙티브 prompt 를 깨뜨림. silent exit 또는 prompt 뜨고 keypress 무반응 케이스 관측 (Jinwoo 머신 bun 1.3.14). `bash <(curl …)` process substitution 으로 전환 — bash stdin = controlling terminal 로 유지되어 자동 진입 정상 동작. README + bootstrap.sh 주석 + aios-dev/components/onboard 안내문 모두 갱신.
 
 ### 3.2 진단 (bootstrap 실패 시)
 

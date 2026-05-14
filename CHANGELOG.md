@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-14
+
+### Changed
+- **사용자 한 줄 명령 변경**: `curl … | bash` → `bash <(curl …)` (process substitution)
+  - 이유: 파이프 패턴은 bash stdin = 닫힌 파이프 (EOF). Phase 2 의 @clack/prompts (TUI) 인터랙티브 prompt 가 keypress 미수신 또는 silent exit 0
+  - 관측: Jinwoo 머신 (bun 1.3.14 macOS) — `< /dev/tty` / `exec 0< /dev/tty` redirect 시도해도 raw mode 미해결
+  - 해결: `bash <(curl …)` 는 bash stdin = controlling terminal 유지 → exec bun 정상 TTY 상속 → 자동 진입 매끄럽게 동작
+- 영향 파일: README.md / README_ko.md / bootstrap.sh 헤더 주석 / CLAUDE.md §3.1
+- 호환성: bash/zsh process substitution 지원 셸 (macOS/Linux 표준 환경 100% 지원)
+
 ## [0.2.0] - 2026-05-14
 
 본 release 의 의도: bootstrap 진단 가능성 강화 + thin wrapper 전환 + UX 명료화.
