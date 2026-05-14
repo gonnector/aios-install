@@ -108,9 +108,7 @@ if ! curl -u "gonnector:${GH_PAT}" -fsSL \
   fail "AIOS 부트스트랩 실행 실패. 출력 메시지를 확인하세요."
 fi
 
+# wrapper 측 후속 메시지는 출력하지 않음 — inner bootstrap.sh 가
+# Phase 1 완료 → Phase 2 (bun run onboard) 자동 진입 → onboard 가 자체 완료 안내.
+# wrapper 가 중복 안내하면 사용자 혼란 (Dylan 2026-05-14 지시).
 unset GH_PAT
-
-echo ""
-success "AIOS Install 완료."
-echo -e "  ${DIM}다음: 새 터미널 또는 ${BOLD}exec zsh${NC}${DIM} 후 ${BOLD}al <에이전트>${NC}${DIM} 로 첫 실행${NC}"
-echo ""
