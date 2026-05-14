@@ -85,9 +85,17 @@ echo ""
   done
 
   # §2.5 bootstrap 로그 자동 분석 (SPEC §5 통합)
+  # 두 위치 탐색 (B안, 2026-05-14):
+  #   - ~/.aios-onboard/logs/bootstrap-*.log (clone 성공 후 위치)
+  #   - /tmp/aios-bootstrap-*.log            (clone 실패 시 시작 위치 잔존)
+  #   - ~/aios-bootstrap-*.log              (구 위치, 호환성 — 0.2.x 이전)
   echo ""
   echo "── §2.5 bootstrap 로그 자동 분석 ──"
-  LATEST_LOG=$(ls -t "$HOME"/aios-bootstrap-*.log 2>/dev/null | head -1)
+  LATEST_LOG=$(ls -t \
+    "$HOME"/.aios-onboard/logs/bootstrap-*.log \
+    /tmp/aios-bootstrap-*.log \
+    "$HOME"/aios-bootstrap-*.log \
+    2>/dev/null | head -1)
   if [ -n "$LATEST_LOG" ] && [ -f "$LATEST_LOG" ]; then
     echo "  최근 로그: $LATEST_LOG"
     echo "  생성 시각: $(stat -f '%Sm' "$LATEST_LOG" 2>/dev/null)"
