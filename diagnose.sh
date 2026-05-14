@@ -41,6 +41,19 @@ report_var() {
   fi
 }
 
+# ─── 시작 안내 (사용자에게 무엇이 진행 중인지 즉시 표시) ──
+echo ""
+echo "════════════════════════════════════════════════════════════════"
+echo "  ${c_cyn}AIOS Bootstrap 진단 시작${c_rst}"
+echo "════════════════════════════════════════════════════════════════"
+echo ""
+echo "  ${c_cyn}ℹ${c_rst} 환경 변경 없이 진단 정보만 수집합니다 (약 10~30초)."
+echo "  ${c_cyn}ℹ${c_rst} 결과: 화면 + 파일 ($OUT) 동시 출력."
+echo "  ${c_cyn}ℹ${c_rst} 중간에 PAT 입력 prompt 가 한 번 나옵니다 (선택)."
+echo ""
+echo "  ${c_dim}── 진단 진행 ──${c_rst}"
+echo ""
+
 # 출력을 화면 + 파일 동시
 {
   echo "════════════════════════════════════════════════════════════════"
@@ -70,6 +83,71 @@ report_var() {
   for v in GH_PAT AIOS_PATH AIOS AIOS_ORG REPOS USER_NAME WORK_NAME WORK_PATH PERSONAL_PATH HOME; do
     report_var "$v"
   done
+
+  # §2.5 bootstrap 로그 자동 분석 (SPEC §5 통합)
+  echo ""
+  echo "── §2.5 bootstrap 로그 자동 분석 ──"
+  LATEST_LOG=$(ls -t "$HOME"/aios-bootstrap-*.log 2>/dev/null | head -1)
+  if [ -n "$LATEST_LOG" ] && [ -f "$LATEST_LOG" ]; then
+    echo "  최근 로그: $LATEST_LOG"
+    echo "  생성 시각: $(stat -f '%Sm' "$LATEST_LOG" 2>/dev/null)"
+    echo "  크기: $(wc -l < "$LATEST_LOG" | tr -d ' ') 줄"
+    echo ""
+    echo "  ── 단계 진행 매트릭스 ──"
+    KNOWN_STEPS=(os-check xcode-cli homebrew git-install git-version bun-install \
+                 cmux-install wezterm-install discord-install pat-prompt \
+                 clone-aios-dev remote-clean bun-deps \
+                 skill-clone-wrapup skill-clone-research skill-clone-todo \
+                 bootstrap-complete)
+    for s in "${KNOWN_STEPS[@]}"; do
+      # bash 3.2 호환 — printf 패딩
+      local_step=$(printf "%-30s" "$s")
+      if grep -qE "\[SUCCESS[[:space:]]*\][[:space:]]*\[${s}" "$LATEST_LOG" 2>/dev/null; then
+        echo "    [${c_grn}✓${c_rst}] $local_step (완료)"
+      elif grep -qE "\[ERROR[[:space:]]*\][[:space:]]*\[${s}" "$LATEST_LOG" 2>/dev/null; then
+        err_msg=$(grep -E "\[ERROR[[:space:]]*\][[:space:]]*\[${s}" "$LATEST_LOG" | tail -1 | sed -E 's/.*\][[:space:]]*//')
+        echo "    [${c_red}✗${c_rst}] $local_step (실패: $err_msg)"
+      elif grep -qE "\[FAIL[[:space:]]*\][[:space:]]*\[${s}" "$LATEST_LOG" 2>/dev/null; then
+        fail_msg=$(grep -E "\[FAIL[[:space:]]*\][[:space:]]*\[${s}" "$LATEST_LOG" | tail -1 | sed -E 's/.*\][[:space:]]*//')
+        echo "    [${c_red}✗${c_rst}] $local_step (FAIL: $fail_msg)"
+      elif grep -qE "\[INFO[[:space:]]*\][[:space:]]*\[${s}" "$LATEST_LOG" 2>/dev/null; then
+        echo "    [${c_yel}⚠${c_rst}] $local_step (시작했으나 완료 entry 없음)"
+      else
+        echo "    [ ] $local_step (미진입)"
+      fi
+    done
+
+    echo ""
+    echo "  ── 마지막 ERROR/STDERR/FAIL entries ──"
+    grep -E '\[(ERROR|STDERR|FAIL|WARN)\][[:space:]]' "$LATEST_LOG" 2>/dev/null | tail -10 | sed 's/^/    /' || echo "    (entries 없음 — 정상 완료 또는 진행 중)"
+
+    echo ""
+    echo "  ── 자동 가설 매핑 ──"
+    LAST_STDERR=$(grep -E '\[STDERR[[:space:]]*\]' "$LATEST_LOG" 2>/dev/null | tail -3 | tr '\n' ' ')
+    LAST_ERROR=$(grep -E '\[ERROR[[:space:]]*\]' "$LATEST_LOG" 2>/dev/null | tail -1)
+
+    if [ -z "$LAST_ERROR" ]; then
+      echo "    → ERROR entry 없음. bootstrap 정상 완료했거나 진행 중."
+    elif echo "$LAST_STDERR" | grep -qiE 'authentication failed|invalid.*token|HTTP/[0-9.]+ 40[13]'; then
+      echo "    → ${c_red}PAT 인증 실패${c_rst}: PAT 만료/오타. 새 PAT 발급 권장."
+    elif echo "$LAST_STDERR" | grep -qiE 'repository.*not found|HTTP/[0-9.]+ 404'; then
+      echo "    → ${c_red}PAT 권한 부족${c_rst}: fine-grained PAT 의 Selected repositories 에"
+      echo "      gonnector/aios-dev (+ 필요 시 skill repos) 추가 후 재발급."
+    elif echo "$LAST_STDERR" | grep -qiE 'could not resolve|connection.*refused|connection.*timed out|timeout'; then
+      echo "    → ${c_red}네트워크 이슈${c_rst}: DNS/VPN/방화벽 확인."
+    elif echo "$LAST_STDERR" | grep -qiE 'sparse.*not.*git command|unknown subcommand'; then
+      echo "    → ${c_red}git 버전 낮음${c_rst}: sparse-checkout 명령 미지원 (2.25+ 필요)."
+      echo "      brew install git 으로 업그레이드 권장. (※ 이번 변경에서 sparse 제거됨)"
+    elif echo "$LAST_STDERR" | grep -qiE 'permission denied|operation not permitted'; then
+      echo "    → ${c_red}권한 부족${c_rst}: sudo 또는 디렉토리 chmod 확인."
+    elif echo "$LAST_STDERR" | grep -qiE 'disk.*full|no space left'; then
+      echo "    → ${c_red}디스크 부족${c_rst}: df -h 확인 + 정리."
+    else
+      echo "    → 자동 매핑 안 됨. 위 ERROR/STDERR 텍스트로 Gonnector 측 수동 진단 필요."
+    fi
+  else
+    echo "  ${c_dim}~/aios-bootstrap-*.log 파일 없음 — bootstrap 실행 흔적 없거나 (a153d2a 이전 버전)${c_rst}"
+  fi
 
   # §3 네트워크 도달성
   echo ""
@@ -116,19 +194,26 @@ report_var() {
 
   # §5 PAT 인터랙티브 검증
   echo ""
-  echo "── §5 PAT 권한 검증 (interactive) ──"
+  echo "── §5 PAT 권한 검증 (선택 — Enter 만 눌러도 skip 가능) ──"
 
   # GH_PAT 환경변수 또는 prompt
   if [ -z "${GH_PAT:-}" ]; then
     if [ -r /dev/tty ]; then
-      printf "  PAT 입력 (검증만 — 저장·전송 안 함, 비표시): "
+      # 화면 직접 출력 (/dev/tty) — pipe/tee buffering 영향 회피
+      printf "\n  %s GitHub PAT 입력 단계 — 권한 사전 검증에 사용 (저장·전송 안 함).\n" "ℹ" >/dev/tty
+      printf "  %s 입력 시 글자가 화면에 표시되지 않습니다 (보안).\n" "ℹ" >/dev/tty
+      printf "  %s 검증을 skip 하려면 그냥 Enter — 다음 단계로 진행.\n\n" "ℹ" >/dev/tty
+      printf "  PAT (또는 Enter 로 skip): " >/dev/tty
       read -s GH_PAT </dev/tty
-      echo ""
+      printf "\n" >/dev/tty
+      if [ -z "$GH_PAT" ]; then
+        echo "  ${c_yel}⚠${c_rst} PAT 입력 skip — §5/§6 검증은 생략됩니다."
+      fi
     else
-      echo "  interactive TTY 없음 — PAT 검증 skip"
+      echo "  ${c_yel}⚠${c_rst} interactive TTY 없음 — PAT 검증 skip"
     fi
   else
-    echo "  환경변수 GH_PAT 사용"
+    echo "  ${c_cyn}ℹ${c_rst} 환경변수 GH_PAT 사용 (prompt 생략)"
   fi
 
   if [ -n "${GH_PAT:-}" ]; then
@@ -239,16 +324,16 @@ report_var() {
   echo "════════════════════════════════════════════════════════════════"
   echo "  진단 완료 — $(date '+%Y-%m-%d %H:%M:%S')"
   echo "════════════════════════════════════════════════════════════════"
-} | tee "$OUT" >/dev/null
+} | tee "$OUT"
 
-# 화면에 짧은 안내
+# 화면에 마지막 안내 (파일에는 위 } 블록만 기록)
 echo ""
 echo "════════════════════════════════════════════════════════════════"
-echo "  진단 완료"
+echo "  ${c_grn}✓${c_rst} 진단 완료"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 echo "  결과 파일: $OUT"
 echo "  ($(wc -c < "$OUT" | tr -d ' ') 바이트)"
 echo ""
-echo "  다음: 위 파일을 Gonnector(메일/메신저)에 첨부 전달"
+echo "  다음 단계: 위 파일을 Gonnector(메일/메신저)에 첨부 전달"
 echo ""
