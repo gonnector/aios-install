@@ -105,9 +105,25 @@ echo ""
 
 export GH_PAT
 
-if ! curl -u "gonnector:${GH_PAT}" -fsSL \
-  "https://raw.githubusercontent.com/gonnector/aios-dev/master/components/onboard/bootstrap.sh" \
-  | bash; then
+# 2026-05-17 (PR1/A): TTY 보존 — 이전 `curl … | bash` 패턴은 inner bootstrap 의
+# stdin 을 closed pipe 로 만들어 Phase 2 의 @clack/prompts TUI 가 깨졌음
+# (이은영 책임 재설치 silent fail 의 직접 원인). tempfile 경유로 전환하여
+# inner bash 가 controlling terminal 의 stdin 을 그대로 상속하도록 변경.
+INNER_TMP=$(mktemp -t aios-inner-bootstrap.XXXXXX) || fail "tmpfile 생성 실패"
+chmod 600 "$INNER_TMP"
+if [ "$(stat -f '%Lp' "$INNER_TMP" 2>/dev/null)" != "600" ]; then
+  rm -f "$INNER_TMP"
+  fail "tmpfile 권한 검증 실패 (chmod 600 미적용)"
+fi
+trap 'rm -f "$INNER_TMP"' EXIT INT TERM
+
+if ! curl -u "gonnector:${GH_PAT}" -fsSL -o "$INNER_TMP" \
+     "https://raw.githubusercontent.com/gonnector/aios-dev/master/components/onboard/bootstrap.sh"; then
+  unset GH_PAT
+  fail "inner bootstrap 다운로드 실패 — 네트워크/PAT 확인 부탁드립니다."
+fi
+
+if ! GH_PAT="${GH_PAT}" bash "$INNER_TMP"; then
   unset GH_PAT
   fail "AIOS 부트스트랩 실행 실패. 출력 메시지를 확인하세요."
 fi
