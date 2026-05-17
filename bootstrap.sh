@@ -32,10 +32,23 @@ DIM='\033[2m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-info()    { echo -e "  ${CYAN}ℹ${NC} $1"; }
-success() { echo -e "  ${GREEN}✓${NC} $1"; }
-warn()    { echo -e "  ${YELLOW}⚠${NC} $1"; }
-fail()    { echo -e "  ${RED}✗${NC} $1" >&2; exit 1; }
+# 2026-05-17 (PR1/C): GitHub PAT/token 패턴을 stderr/log 출력 전에 마스킹.
+# stdin → stdout 필터. 모든 사용자 노출 출력(fail/warn 등)에 통과시킴.
+mask_credentials() {
+  sed -E 's/(ghp_|gho_|ghr_|ghu_|ghs_|github_pat_)[A-Za-z0-9_]+/\1****/g'
+}
+
+# 2026-05-17 (PR1/D): AIOS_VERBOSE=1 환경변수로 trace 출력 활성화
+log_verbose() {
+  if [[ -n "${AIOS_VERBOSE:-}" ]]; then
+    echo -e "  ${DIM}[AIOS_VERBOSE] $(echo "$1" | mask_credentials)${NC}" >&2
+  fi
+}
+
+info()    { echo -e "  ${CYAN}ℹ${NC} $(echo "$1" | mask_credentials)"; }
+success() { echo -e "  ${GREEN}✓${NC} $(echo "$1" | mask_credentials)"; }
+warn()    { echo -e "  ${YELLOW}⚠${NC} $(echo "$1" | mask_credentials)"; }
+fail()    { echo -e "  ${RED}✗${NC} $(echo "$1" | mask_credentials)" >&2; exit 1; }
 
 # ── 배너 ──
 echo ""
@@ -87,15 +100,23 @@ if [[ ! "$GH_PAT" =~ ^(ghp_|github_pat_|gho_|ghu_|ghs_|ghr_) ]]; then
 fi
 
 # ── PAT 권한 사전 확인 (raw URL 도달) ──
+# 2026-05-17 (PR1/B): silent fail 차단 수정 — 이전 코드는 두 가지 버그 보유:
+#   1) `-f` + `|| echo "000"` 조합: 404 응답 시 curl -f 가 종료 코드 22 + body 없음 →
+#      `-w "%{http_code}"` 캡쳐 실패 → fallback "000" 으로 손실 (404 분기 도달 불가)
+#   2) `*)` 분기가 warn 으로 silent proceed — 예상 외 응답에도 inner bootstrap 진입 시도
+# 수정: `-f` 제거 (4xx 도 출력 받음), `*)` 도 fail (silent proceed 차단)
 info "PAT 권한 확인 중..."
-HTTP_CODE=$(curl -u "gonnector:${GH_PAT}" -fsSL -o /dev/null -w "%{http_code}" \
-  "https://raw.githubusercontent.com/gonnector/aios-dev/master/components/onboard/bootstrap.sh" 2>/dev/null || echo "000")
+HTTP_CODE=$(curl -u "gonnector:${GH_PAT}" -sSL -o /dev/null -w "%{http_code}" \
+  "https://raw.githubusercontent.com/gonnector/aios-dev/master/components/onboard/bootstrap.sh" 2>/dev/null)
+HTTP_CODE="${HTTP_CODE:-000}"
 
 case "$HTTP_CODE" in
-  200) success "PAT 권한 확인 완료" ;;
-  401|403) fail "PAT 인증 실패 (HTTP $HTTP_CODE). PAT가 유효하고 gonnector/aios-dev 접근 권한이 있는지 확인하세요." ;;
-  404) fail "PAT 가 aios-dev 접근 권한이 없습니다 (HTTP 404 — private repo). fine-grained PAT 의 Repository access 에 gonnector/aios-dev 가 포함되어 있는지 확인하세요." ;;
-  *)   warn "예상 외 응답 (HTTP $HTTP_CODE). 진행은 시도합니다." ;;
+  200)     success "PAT 권한 확인 완료" ;;
+  401|403) fail "PAT 인증 거부 (HTTP $HTTP_CODE) — PAT 재확인 부탁드립니다 (Settings → Developer settings → Personal access tokens). PAT 가 유효하고 gonnector/aios-dev 접근 권한이 있는지 확인 필요." ;;
+  404)     fail "PAT scope 부족 또는 repo 접근 권한 없음 (HTTP $HTTP_CODE) — PAT 의 'repo' scope 활성 확인 부탁드립니다. fine-grained PAT 의 경우 Repository access 에 gonnector/aios-dev 가 포함되어 있어야 합니다." ;;
+  5*)      fail "GitHub 서버 오류 (HTTP $HTTP_CODE) — 잠시 후 재시도 부탁드립니다." ;;
+  000)     fail "네트워크 응답 없음 (HTTP 000) — 인터넷 연결 또는 VPN 설정 확인 부탁드립니다." ;;
+  *)       fail "예상 외 응답 (HTTP $HTTP_CODE) — 다음 메시지로 보고 부탁드립니다. (silent proceed 차단 — PR1)" ;;
 esac
 
 # ── aios-dev 의 onboard bootstrap.sh 가져와 실행 ──

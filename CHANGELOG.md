@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-17
+
+본 release 의 의도: LGE AX 이은영 책임 macOS 재설치 silent fail unblock (PR1).
+
+### Fixed
+
+- **outer bootstrap TTY 보존 (A)** — inner bootstrap 호출 패턴을 `curl … | bash` → tempfile 다운로드 후 `bash $INNER_TMP` 로 전환. 이전 파이프 패턴이 inner 의 stdin 을 closed pipe 로 만들어 Phase 2 의 @clack/prompts TUI 가 깨지던 문제 해결. 이은영 책임 재설치 silent fail 의 직접 원인.
+  - tempfile: `mktemp -t aios-inner-bootstrap.XXXXXX` + `chmod 600` + `stat -f '%Lp'` 검증 + `trap 'rm -f' EXIT INT TERM`
+- **outer PAT 권한 확인 silent fail 차단 (B)** — 두 버그 수정:
+  - `-f` + `|| echo "000"` 조합 제거: 이전 코드는 404 응답 시 curl -f 가 종료 코드 22 + body 없음 → `-w "%{http_code}"` 캡쳐 실패 → fallback "000" 으로 손실 → 404 분기 도달 불가. `-f` 제거하여 4xx 도 정상 캡쳐.
+  - `*)` 분기를 warn → fail 로 전환. 예상 외 응답에도 inner bootstrap 진입 시도하던 silent proceed 차단.
+  - 신규 분기 추가: `5*)` (GitHub 서버 일시 장애 — 잠시 후 재시도 안내), `000` 명시 (네트워크 응답 없음 — 인터넷 연결 확인 안내). `5*)` 가 `*)` 보다 먼저 와야 매칭됨.
+
+### Added
+
+- **`mask_credentials()` 공통 함수 (C)** — bootstrap.sh helper 영역에 추가. GitHub PAT prefix (`ghp_`, `gho_`, `ghr_`, `ghu_`, `ghs_`, `github_pat_`) 패턴을 `***` 로 마스킹. fail/info/success/warn 모든 사용자 노출 출력 함수에 통합. stderr/log 평문 PAT 노출 방지.
+- **`AIOS_VERBOSE` 환경변수 (D)** — `AIOS_VERBOSE=1` 부착 시 stderr 에 trace 출력. `log_verbose()` 신설 (마스킹 통과). 사용자 디버그 시 컨텍스트 확보 목적.
+
+### Security
+
+- PAT prefix 마스킹 패턴 6종 (ghp_ / gho_ / ghr_ / ghu_ / ghs_ / github_pat_) 일괄 처리
+- tempfile 권한 600 + 종료 시 자동 삭제 (trap)
+
 ## [0.3.0] - 2026-05-14
 
 ### Changed
