@@ -90,7 +90,7 @@ The wrapper here intentionally contains no install logic — `aios-dev` is the s
 
 ## Documentation
 
-- Operations guide for this repo: [`CLAUDE.md`](CLAUDE.md)
+- Operations guide for this repo: [`AGENTS.md`](AGENTS.md)
 - Version history: [`CHANGELOG.md`](CHANGELOG.md)
 - Logging & error-handling spec: `aios-dev/components/onboard/docs/20260514_spec_bootstrap-logging-and-errors_TARS-MB.md` (private)
 
